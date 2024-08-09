@@ -1,0 +1,82 @@
+.container-live-runner {
+    display: flex;
+    box-shadow: 0 0 2px 0 lightsteelblue;
+    height: 300px;
+    overflow: hidden;
+}
+
+.container-playground-editor {
+    display: flex;
+    overflow: hidden;
+    position: fixed;
+    top: var(--header-height);
+    right: 0;
+    bottom: 0;
+    left: 0;
+
+    @media (max-width: 960px) {
+        flex-direction: column-reverse;
+    }
+}
+
+
+@media (max-width: 640px) {
+    .container {
+        flex-direction: column-reverse;
+        height: 480px;
+    }
+}
+
+.editor-container {
+    flex: 0 1 720px;
+    overflow: auto;
+}
+
+.editor {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, Courier New, monospace;
+    font-size: 14px;
+    white-space: pre;
+    caret-color: #fff;
+    min-width: 100%;
+    min-height: 100%;
+    float: left;
+}
+
+.editor > textarea,
+.editor > pre {
+    outline: none;
+    white-space: pre !important;
+}
+
+.codemirror {
+    font-size: 14px;
+    flex: 0 1 720px;
+    overflow: hidden;
+}
+
+.preview-container {
+    flex: 1 1 720px;
+    position: relative;
+    display: flex;
+    overflow: hidden;
+}
+
+.preview {
+    margin: auto;
+    white-space: pre-wrap;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: auto;
+}
+
+.preview-error {
+    background: #fcc;
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 100%;
+    margin: 0;
+    padding: 10px;
+    color: #f00;
+    white-space: pre-wrap;
+}

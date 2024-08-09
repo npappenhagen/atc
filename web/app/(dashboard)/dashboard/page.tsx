@@ -2,7 +2,9 @@ import { notFound } from "next/navigation"
 import { getCurrentUser } from "@/lib/session"
 import { DashboardShell } from "@/components/shell"
 import { DashboardHeader } from "@/components/header"
-import { EmptyPlaceholder } from "@/components/empty-placeholder"
+import ResumeList from "@/components/resume-list"
+import CreateResumeForm from "@/components/create-resume-form"
+import { fetchTemplates, fetchResumes } from "@/app/actions"
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
@@ -11,19 +13,17 @@ export default async function DashboardPage() {
     return notFound()
   }
 
+  const templates = await fetchTemplates()
+  const resumes = await fetchResumes(user.id)
+
   return (
     <DashboardShell>
-      <DashboardHeader heading="Posts" text="Create and manage posts.">
-        <div>hi</div>
-      </DashboardHeader>
-      <div>
-        <EmptyPlaceholder>
-          <EmptyPlaceholder.Icon name="post" />
-          <EmptyPlaceholder.Title>No posts created</EmptyPlaceholder.Title>
-          <EmptyPlaceholder.Description>
-            You don&apos;t have any posts yet. Start creating content.
-          </EmptyPlaceholder.Description>
-        </EmptyPlaceholder>
+      <DashboardHeader heading="Resumes" text="Create and manage resumes." />
+      <div className="grid gap-10">
+        <div>
+          <CreateResumeForm userId={user.id} templates={templates} />
+          <ResumeList resumes={resumes} userId={user.id} />
+        </div>
       </div>
     </DashboardShell>
   )
