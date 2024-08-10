@@ -6,6 +6,11 @@ import {
   PreviewContainer,
   PreviewError,
 } from "@/components/live-runner"
+import "@/components/live-runner/styles.css"
+
+const tailwindCSS = `
+@import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
+`
 
 const CodeEditor = ({ initialMarkup, resumeContent, onSave }) => {
   const [markup, setMarkup] = useState(initialMarkup || "")
@@ -46,7 +51,7 @@ const CodeEditor = ({ initialMarkup, resumeContent, onSave }) => {
   }, [initialMarkup])
 
   return (
-    <div className="h-64">
+    <div className="">
       <CodeMirror
         value={markup}
         padding={16}
@@ -55,7 +60,10 @@ const CodeEditor = ({ initialMarkup, resumeContent, onSave }) => {
       />
       <div>
         <PreviewContainer>
-          <Preview>{element}</Preview>
+          <Preview>
+            <style>{tailwindCSS}</style>
+            {element}
+          </Preview>
           {error && <PreviewError>{error}</PreviewError>}
         </PreviewContainer>
       </div>

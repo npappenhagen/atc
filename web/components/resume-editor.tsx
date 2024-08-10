@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from "react"
 import useSWR from "swr"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import JsonEditor from "@/components/json-editor"
 import { saveResumeContent, fetchResumeData } from "@/app/actions"
 import { useToast } from "@/components/ui/use-toast"
 import CodeEditor from "@/components/code-editor"
@@ -50,6 +50,30 @@ const ResumeEditor = ({ resumeId }) => {
     [resumeId, resume?.name, resume?.content, mutate, toast]
   )
 
+  const handleSaveJson = useCallback(
+    async (jsonContent) => {
+      try {
+        await saveResumeContent(
+          resumeId,
+          resume.name,
+          JSON.stringify(jsonContent, null, 2),
+          localMarkup
+        )
+        await mutate({ ...resume, content: jsonContent }, false) // Optimistically update the UI
+        toast({
+          title: "Success",
+          description: "Resume saved successfully.",
+        })
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to save resume.",
+        })
+      }
+    },
+    [resumeId, resume?.name, localMarkup, mutate, toast]
+  )
+
   if (!resume) return <p>Loading...</p>
 
   return (
@@ -60,14 +84,7 @@ const ResumeEditor = ({ resumeId }) => {
         value={resume.name}
         onChange={(e) => mutate({ ...resume, name: e.target.value }, false)}
       />
-      <Textarea
-        placeholder="Resume Content (JSON)"
-        name="content"
-        value={JSON.stringify(resume.content, null, 2)}
-        onChange={(e) =>
-          mutate({ ...resume, content: JSON.parse(e.target.value) }, false)
-        }
-      />
+      <JsonEditor initialJson={resume.content} onSave={handleSaveJson} />
       <CodeEditor
         initialMarkup={localMarkup}
         resumeContent={resume.content}

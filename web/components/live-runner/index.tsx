@@ -13,6 +13,7 @@ import {
   Language,
 } from "react-live-runner"
 import { CodeMirror as CM } from "react-runner-codemirror"
+import "./styles.css"
 
 export const Container = styled.div`
   display: flex;
