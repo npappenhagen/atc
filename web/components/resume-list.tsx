@@ -1,43 +1,33 @@
 "use client"
 
-import React, { useState } from "react"
+import React from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Table, TableRow, TableCell, TableHeader } from "@/components/ui/table"
 import { deleteResume, createOrUpdateResume } from "@/app/actions"
-import ResumeEditor from "@/components/resume-editor"
 
 export default function ResumeList({ resumes, userId }) {
-  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null)
-  const [isCreating, setIsCreating] = useState(false)
+  const router = useRouter()
 
-  const handleDelete = async (resumeId) => {
-    await deleteResume(resumeId)
-    setSelectedResumeId(null) // Close editor if the deleted resume was open
+  const handleEdit = (resumeId: string) => {
+    // Navigate to the resume edit page using the resumeId
+    router.push(`/resumes/${resumeId}/edit`)
   }
 
-  const handleDuplicate = async (resume) => {
-    try {
-      const newResume = await createOrUpdateResume({
-        user_id: resume.user_id,
-        name: "", // Optionally pass a new name or leave it as a copy
-        content: "", // Optionally override content or leave it empty to clone the existing content
-        resume_id_to_clone: resume.id,
-      })
-      setSelectedResumeId(newResume.id) // Open the newly duplicated resume in the editor
-    } catch (error) {
-      console.error("Failed to duplicate resume:", error)
-    }
+  const handleDelete = async (resumeId: string) => {
+    await deleteResume(resumeId)
+    // Additional logic for deletion
+  }
+
+  const handleDuplicate = async (resume: any) => {
+    // Logic for duplicating a resume
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <Button onClick={() => setIsCreating(true)}>Create New Resume</Button>
-      {isCreating && (
-        <ResumeEditor
-          resumeId={null} // null indicates a new resume creation
-          onClose={() => setIsCreating(false)} // Close the editor on cancel or save
-        />
-      )}
+      <Button onClick={() => router.push("/resumes/new")}>
+        Create New Resume
+      </Button>
       <Table>
         <TableHeader>
           <TableRow>
@@ -46,14 +36,11 @@ export default function ResumeList({ resumes, userId }) {
           </TableRow>
         </TableHeader>
         <tbody>
-          {resumes.map((resume) => (
+          {resumes.map((resume: any) => (
             <TableRow key={resume.id}>
               <TableCell>{resume.name}</TableCell>
               <TableCell>
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedResumeId(resume.id)}
-                >
+                <Button variant="outline" onClick={() => handleEdit(resume.id)}>
                   Edit
                 </Button>
                 <Button
@@ -73,13 +60,6 @@ export default function ResumeList({ resumes, userId }) {
           ))}
         </tbody>
       </Table>
-
-      {selectedResumeId && (
-        <ResumeEditor
-          resumeId={selectedResumeId}
-          onClose={() => setSelectedResumeId(null)}
-        />
-      )}
     </div>
   )
 }

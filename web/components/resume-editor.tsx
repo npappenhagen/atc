@@ -1,12 +1,13 @@
 "use client"
 
-import React, { useState, useCallback, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import useSWR from "swr"
 import { Input } from "@/components/ui/input"
 import JsonEditor from "@/components/json-editor"
+import CodeEditor from "@/components/code-editor"
+import PreviewOnly from "@/components/preview-only"
 import { saveResumeContent, fetchResumeData } from "@/app/actions"
 import { useToast } from "@/components/ui/use-toast"
-import CodeEditor from "@/components/code-editor"
 
 const fetcher = async (resumeId) => {
   return await fetchResumeData(resumeId)
@@ -17,79 +18,108 @@ const ResumeEditor = ({ resumeId }) => {
     revalidateOnFocus: false,
   })
   const { toast } = useToast()
-  const [localMarkup, setLocalMarkup] = useState("")
 
-  // Update local markup when resume data changes
+  const [jsonContent, setJsonContent] = useState({})
+  const [markup, setMarkup] = useState("")
+
   useEffect(() => {
-    if (resume && resume.markup !== localMarkup) {
-      setLocalMarkup(resume.markup || "")
+    if (resume) {
+      setJsonContent(resume.content)
+      setMarkup(resume.markup)
     }
-  }, [resume, localMarkup])
+  }, [resume])
 
-  const handleSave = useCallback(
-    async (markup) => {
-      try {
-        await saveResumeContent(
-          resumeId,
-          resume.name,
-          JSON.stringify(resume.content, null, 2),
-          markup
-        )
-        await mutate({ ...resume, markup }, false) // Optimistically update the UI
-        toast({
-          title: "Success",
-          description: "Resume saved successfully.",
-        })
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to save resume.",
-        })
+  const handleSaveJson = async (jsonContent) => {
+    try {
+      const updatedResume = {
+        ...resume,
+        content: jsonContent,
+        markup,
       }
-    },
-    [resumeId, resume?.name, resume?.content, mutate, toast]
-  )
+      await saveResumeContent(
+        resumeId,
+        updatedResume.name,
+        JSON.stringify(jsonContent, null, 2), // Ensure JSON string is correctly formatted
+        markup
+      )
+      mutate(updatedResume, false)
+      toast({
+        title: "Success",
+        description: "Resume JSON saved successfully.",
+      })
+    } catch (error) {
+      console.error("Failed to save resume JSON:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save resume JSON.",
+      })
+    }
+  }
 
-  const handleSaveJson = useCallback(
-    async (jsonContent) => {
-      try {
-        await saveResumeContent(
-          resumeId,
-          resume.name,
-          JSON.stringify(jsonContent, null, 2),
-          localMarkup
-        )
-        await mutate({ ...resume, content: jsonContent }, false) // Optimistically update the UI
-        toast({
-          title: "Success",
-          description: "Resume saved successfully.",
-        })
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to save resume.",
-        })
+  const handleSaveMarkup = async (markup) => {
+    try {
+      const updatedResume = {
+        ...resume,
+        content: jsonContent,
+        markup,
       }
-    },
-    [resumeId, resume?.name, localMarkup, mutate, toast]
-  )
+      await saveResumeContent(
+        resumeId,
+        updatedResume.name,
+        JSON.stringify(jsonContent, null, 2),
+        markup
+      )
+      mutate(updatedResume, false)
+      toast({
+        title: "Success",
+        description: "Resume markup saved successfully.",
+      })
+    } catch (error) {
+      console.error("Failed to save resume markup:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save resume markup.",
+      })
+    }
+  }
 
   if (!resume) return <p>Loading...</p>
 
   return (
-    <div className="flex flex-col gap-4">
-      <Input
-        placeholder="Resume Name"
-        name="name"
-        value={resume.name}
-        onChange={(e) => mutate({ ...resume, name: e.target.value }, false)}
-      />
-      <JsonEditor initialJson={resume.content} onSave={handleSaveJson} />
-      <CodeEditor
-        initialMarkup={localMarkup}
-        resumeContent={resume.content}
-        onSave={handleSave}
-      />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-screen">
+      <div className="col-span-2 flex flex-col space-y-4">
+        <Input
+          placeholder="Resume Name"
+          name="name"
+          value={resume.name}
+          onChange={(e) => mutate({ ...resume, name: e.target.value }, false)}
+          className="mb-4"
+        />
+
+        <div className="flex-1 flex flex-col">
+          <JsonEditor
+            initialJson={jsonContent}
+            onSave={handleSaveJson}
+            className="flex-1"
+          />
+        </div>
+
+        <div className="flex-1 flex flex-col mt-4">
+          <CodeEditor
+            initialMarkup={markup}
+            resumeContent={jsonContent}
+            onSave={handleSaveMarkup}
+            className="flex-1"
+          />
+        </div>
+      </div>
+
+      <div className="col-span-1 bg-white p-4 rounded-lg shadow-md overflow-auto">
+        <h2 className="text-xl font-semibold mb-4">Live Preview</h2>
+        <div className="h-full">
+          <PreviewOnly markup={markup} resumeContent={jsonContent} />
+        </div>
+      </div>
     </div>
   )
 }

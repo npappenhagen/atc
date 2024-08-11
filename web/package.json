@@ -38,6 +38,7 @@
     "react-json-editor-ajrm": "^2.5.14",
     "react-live": "^4.1.7",
     "react-live-runner": "^1.0.7",
+    "react-resizable-panels": "^2.0.23",
     "react-runner": "^1.0.5",
     "react-runner-codemirror": "^0.3.4",
     "remark-mdx-code-meta": "^2.0.0",

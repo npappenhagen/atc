@@ -390,11 +390,19 @@ export async function saveResumeContent(
       newTemplateVersionId = newTemplateVersion.id
     }
 
+    // Ensure that content is a valid JSON string
+    let parsedContent
+    try {
+      parsedContent = JSON.parse(content)
+    } catch (e) {
+      throw new Error("Invalid JSON format")
+    }
+
     // Create a new version of the resume
     const newResumeVersion = await db.collection("resume_versions").create({
       resume_id: resume.id,
       version: resumeVersion.version + 1,
-      content: parseAndFormatJSON(content),
+      content: parsedContent,
       template_version_id: newTemplateVersionId,
       user_id: resume.user_id,
     })
@@ -402,7 +410,7 @@ export async function saveResumeContent(
     // Update the resume to point to the new version
     const updatedResume = await db.collection("resumes").update(resume.id, {
       name,
-      content: parseAndFormatJSON(content),
+      content: parsedContent,
       current_version_id: newResumeVersion.id,
     })
 

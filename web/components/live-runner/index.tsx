@@ -131,6 +131,28 @@ export const UseLiveRunner = ({
   )
 }
 
+export const UseRunnerNoPreview = ({
+  code: initialCode,
+  transformCode,
+  language,
+  ...rest
+}: Props) => {
+  const [code, setCode] = useState((initialCode || "").trim())
+  const { element, error } = useRunner({
+    code: transformCode ? transformCode(code) : code,
+    ...rest,
+  })
+
+  return (
+    <Container>
+      <EditorContainer>
+        <Editor value={code} language={language} onChange={setCode} />
+      </EditorContainer>
+      {error && <PreviewError>{error}</PreviewError>}
+    </Container>
+  )
+}
+
 export const UseRunner = ({
   code: initialCode,
   transformCode,

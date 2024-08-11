@@ -1,73 +1,22 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react"
-import { useLiveRunner } from "react-live-runner"
-import {
-  CodeMirror,
-  Preview,
-  PreviewContainer,
-  PreviewError,
-} from "@/components/live-runner"
-import "@/components/live-runner/styles.css"
+import React from "react"
+import { CodeMirror } from "@/components/live-runner"
 
-const tailwindCSS = `
-@import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
-`
-
-const CodeEditor = ({ initialMarkup, resumeContent, onSave }) => {
-  const [markup, setMarkup] = useState(initialMarkup || "")
-
-  // Memoize the scope to prevent unnecessary re-renders
-  const scope = useMemo(
-    () => ({
-      React,
-      resume_values: resumeContent || {},
-    }),
-    [resumeContent]
-  )
-
-  const { element, error, onChange } = useLiveRunner({
-    initialCode: markup,
-    language: "jsx",
-    scope,
-  })
-
-  const handleChange = useCallback(
-    (value) => {
-      setMarkup(value)
-      onChange(value) // This is the main interaction with react-live-runner
-    },
-    [onChange]
-  )
-
-  const handleSave = useCallback(() => {
-    onSave(markup)
-  }, [markup, onSave])
-
-  // Ensure markup is only updated if the initialMarkup changes
-  useEffect(() => {
-    if (initialMarkup && initialMarkup !== markup) {
-      setMarkup(initialMarkup)
-      onChange(initialMarkup)
-    }
-  }, [initialMarkup])
-
+const CodeEditor = ({ initialMarkup, onSave, onChange }) => {
   return (
-    <div className="">
+    <div className="flex flex-col h-full">
       <CodeMirror
-        value={markup}
+        value={initialMarkup}
         padding={16}
         showLineNumbers
-        onChange={handleChange}
+        language="jsx"
+        onChange={onChange}
       />
-      <div>
-        <PreviewContainer>
-          <Preview>
-            <style>{tailwindCSS}</style>
-            {element}
-          </Preview>
-          {error && <PreviewError>{error}</PreviewError>}
-        </PreviewContainer>
-      </div>
-      <button onClick={handleSave}>Save</button>
+      <button
+        className="bg-blue-500 text-white py-2 px-4 rounded mt-4 self-end"
+        onClick={() => onSave(initialMarkup)}
+      >
+        Save Markup
+      </button>
     </div>
   )
 }
