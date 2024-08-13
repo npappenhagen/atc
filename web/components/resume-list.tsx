@@ -10,17 +10,27 @@ export default function ResumeList({ resumes, userId }) {
   const router = useRouter()
 
   const handleEdit = (resumeId: string) => {
-    // Navigate to the resume edit page using the resumeId
     router.push(`/resumes/${resumeId}/edit`)
   }
 
   const handleDelete = async (resumeId: string) => {
     await deleteResume(resumeId)
-    // Additional logic for deletion
   }
 
   const handleDuplicate = async (resume: any) => {
-    // Logic for duplicating a resume
+    try {
+      // Clone the existing resume
+      const newResume = await createOrUpdateResume({
+        user_id: userId,
+        name: `${resume.name} (Copy)`,
+        content: resume.content,
+        resume_id_to_clone: resume.id,
+      })
+
+      router.push(`/resumes/${newResume.id}/edit`)
+    } catch (error) {
+      console.error("Failed to duplicate the resume:", error)
+    }
   }
 
   return (

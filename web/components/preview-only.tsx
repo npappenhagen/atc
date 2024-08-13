@@ -12,7 +12,7 @@ const tailwindCSS = `
 
 const PreviewOnly = ({ element, error }) => {
   return (
-    <PreviewContainer>
+    <PreviewContainer id={"resume-preview"}>
       <Preview>
         <style>{tailwindCSS}</style>
         {element}

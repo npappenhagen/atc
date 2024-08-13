@@ -283,16 +283,26 @@ export async function createOrUpdateResume({
         throw new Error("Template version to clone not found.")
       }
 
-      // Create a new resume based on the clone
+      // Create a new resume based on the clone, but set the correct template and content
       resume = await db.collection("resumes").create({
         user_id,
         name: name || `${resumeToClone.name} (Copy)`,
-        content:
-          content || JSON.stringify(resumeVersionToClone.content, null, 2),
         current_version_id: null,
       })
 
+      // Use the content and template version from the cloned resume version
       templateVersion = templateVersionToClone
+      // content = content || JSON.stringify(templateVersionToClone.content, null, 2)
+      content = resumeVersionToClone.content
+
+      // Create a new version of the resume, including the content and template version
+      newResumeVersion = await db.collection("resume_versions").create({
+        resume_id: resume.id,
+        version: 1,
+        content: parseAndFormatJSON(content), // This handles the JSON content
+        template_version_id: templateVersion.id, // This handles the template version
+        user_id,
+      })
     } else {
       // Creating a new resume
       if (!template_id) {
@@ -312,12 +322,12 @@ export async function createOrUpdateResume({
       })
     }
 
-    // Create a new version of the resume, including the content
+    // Create a new version of the resume, including the content and template version
     newResumeVersion = await db.collection("resume_versions").create({
       resume_id: resume.id,
       version: 1,
-      content: parseAndFormatJSON(content),
-      template_version_id: templateVersion.id,
+      content: parseAndFormatJSON(content), // This handles the JSON content
+      template_version_id: templateVersion.id, // This handles the template version
       user_id,
     })
 
@@ -418,5 +428,38 @@ export async function saveResumeContent(
   } catch (error) {
     handlePocketBaseError(error)
     throw new Error("Failed to save resume content. Please try again.")
+  }
+}
+
+export async function saveHtmlContent(resumeId: string, htmlContent: string) {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    throw new Error("User is not authenticated")
+  }
+
+  try {
+    // Fetch the current resume version
+    const resume = await db.collection("resumes").getOne(resumeId)
+    const resumeVersion = await db
+      .collection("resume_versions")
+      .getOne(resume.current_version_id)
+
+    // Save the HTML content to the resume version
+    const updatedResumeVersion = await db
+      .collection("resume_versions")
+      .update(resumeVersion.id, {
+        html_content: htmlContent, // Assuming you have an `html_content` field in `resume_versions`
+      })
+
+    return {
+      success: true,
+      resumeVersionId: updatedResumeVersion.id,
+      resumeVersionUrl: `/resume/${resumeId}/preview`, // URL to access the preview,
+      content_blob: htmlContent,
+    }
+  } catch (error) {
+    console.error("Error saving HTML content:", error)
+    throw new Error("Failed to save HTML content. Please try again.")
   }
 }
