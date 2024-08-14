@@ -1,7 +1,7 @@
 import React from "react"
 import { CodeMirror } from "@/components/live-runner"
 
-const JsonEditor = ({ initialJson, onSave, onChange }) => {
+const JsonEditor = ({ initialJson, onChange }) => {
   const handleJsonChange = (value) => {
     try {
       const parsedJson = JSON.parse(value)
@@ -20,12 +20,6 @@ const JsonEditor = ({ initialJson, onSave, onChange }) => {
         language="json"
         onChange={handleJsonChange}
       />
-      <button
-        className="bg-blue-500 text-white py-2 px-4 rounded mt-4 self-end"
-        onClick={() => onSave(initialJson)}
-      >
-        Save JSON
-      </button>
     </div>
   )
 }

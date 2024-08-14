@@ -12,21 +12,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { UserAvatar } from "@/components/user-avatar"
-import { useRouter } from "next/navigation"
-import { redirect } from "next/navigation"
+import { logout } from "@/app/actions"
 
 interface UserAccountNavProps extends React.HTMLAttributes<HTMLDivElement> {
   user: Pick<User, "name" | "image" | "email">
 }
 
 export function UserAccountNav({ user }: UserAccountNavProps) {
-  const router = useRouter()
-
   const handleSignOut = () => {
-    // PocketBaseClient.clearToken();
-    db.authStore.clear()
-    redirect("/login")
-    // router.push('/login');
+    logout()
   }
 
   return (

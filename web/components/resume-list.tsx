@@ -4,7 +4,7 @@ import React from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Table, TableRow, TableCell, TableHeader } from "@/components/ui/table"
-import { deleteResume, createOrUpdateResume } from "@/app/actions"
+import { deleteResume, cloneResume } from "@/app/actions"
 
 export default function ResumeList({ resumes, userId }) {
   const router = useRouter()
@@ -20,14 +20,13 @@ export default function ResumeList({ resumes, userId }) {
   const handleDuplicate = async (resume: any) => {
     try {
       // Clone the existing resume
-      const newResume = await createOrUpdateResume({
-        user_id: userId,
-        name: `${resume.name} (Copy)`,
-        content: resume.content,
-        resume_id_to_clone: resume.id,
-      })
+      const newResumeVersion = await cloneResume(
+        resume.id,
+        userId,
+        `${resume.name} (Copy)`
+      )
 
-      router.push(`/resumes/${newResume.id}/edit`)
+      router.push(`/resumes/${newResumeVersion.resume_id}/edit`)
     } catch (error) {
       console.error("Failed to duplicate the resume:", error)
     }

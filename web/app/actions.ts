@@ -7,6 +7,48 @@ import { getCurrentUser } from "@/lib/session"
 import { ClientResponseError } from "pocketbase"
 
 /**
+ * Helper function to handle PocketBase errors.
+ */
+function handlePocketBaseError(error: any) {
+  if (error instanceof ClientResponseError) {
+    switch (error.status) {
+      case 400:
+        console.error("Bad Request:", error.message)
+        break
+      case 401:
+        console.error("Unauthorized:", error.message)
+        break
+      case 403:
+        console.error("Forbidden:", error.message)
+        break
+      case 404:
+        console.error("Not Found:", error.message)
+        break
+      case 500:
+        console.error("Internal Server Error:", error.message)
+        break
+      default:
+        console.error("PocketBase Error:", error.message)
+    }
+  } else {
+    console.error("Unexpected Error:", error)
+  }
+}
+
+/**
+ * Formats and parses a string into JSON. If the string is not valid JSON, returns an empty object.
+ */
+function parseAndFormatJSON(content: string): object {
+  try {
+    const parsed = JSON.parse(content)
+    return parsed // Returns the parsed JSON object
+  } catch (error) {
+    console.error("Invalid JSON input.", JSON.stringify(content, null, 2))
+    return {}
+  }
+}
+
+/**
  * Logs in the user by authenticating with PocketBase and
  * setting the authentication token in cookies.
  */
@@ -107,21 +149,16 @@ export async function fetchResumes(userId: string) {
  * Fetches or creates the default template ID for a given user.
  */
 async function getDefaultTemplateId(userId: string) {
-  console.log(`Fetching default template for user: ${userId}`)
-
   try {
-    // Attempt to fetch the default template
     const defaultTemplate = await db
       .collection("templates")
       .getFirstListItem(`published = true && user_id = "${userId}"`)
 
     if (defaultTemplate) {
-      console.log(`Default template found: ${JSON.stringify(defaultTemplate)}`)
       return defaultTemplate.id
     }
   } catch (error) {
     if (error.status !== 404) {
-      console.error("Error in getDefaultTemplateId:", error)
       throw new Error(
         `Failed to fetch default template. error: ${error.message}`
       )
@@ -129,337 +166,196 @@ async function getDefaultTemplateId(userId: string) {
   }
 
   // If no default template found, create a new one
-  try {
-    const newTemplate = await db.collection("templates").create({
-      name: "Default Template",
-      published: true,
-      shared: false,
-      user_id: userId, // Ensure this is a valid user ID
-      current_version_id: null, // Initially set to null
-    })
+  const newTemplate = await db.collection("templates").create({
+    name: "Default Template",
+    published: true,
+    shared: false,
+    user_id: userId,
+  })
 
-    console.log(`New template created: ${JSON.stringify(newTemplate)}`)
+  await db.collection("template_versions").create({
+    template_id: newTemplate.id,
+    version: 1,
+    markup: "<div>{{content}}</div>",
+    user_id: userId,
+  })
 
-    // Create initial template version
-    const initialTemplateVersion = await db
-      .collection("template_versions")
-      .create({
-        template_id: newTemplate.id,
-        version: 1,
-        markup: "<div>{{content}}</div>",
-        created_at: new Date().toISOString(),
-      })
-
-    console.log(
-      `Initial template version created: ${JSON.stringify(initialTemplateVersion)}`
-    )
-
-    // Update template to point to the initial version
-    await db.collection("templates").update(newTemplate.id, {
-      current_version_id: initialTemplateVersion.id,
-    })
-
-    console.log(`Template updated with initial version: ${newTemplate.id}`)
-
-    return newTemplate.id
-  } catch (error) {
-    console.error("Error in creating default template:", error)
-    throw new Error(
-      `Failed to create default template. error: ${error.message}`
-    )
-  }
+  return newTemplate.id
 }
 
 /**
- * Helper function to handle PocketBase errors.
+ * Clones an existing resume along with its associated template and versions.
  */
-function handlePocketBaseError(error: any) {
-  if (error instanceof ClientResponseError) {
-    switch (error.status) {
-      case 400:
-        console.error("Bad Request:", error.message)
-        break
-      case 401:
-        console.error("Unauthorized:", error.message)
-        break
-      case 403:
-        console.error("Forbidden:", error.message)
-        break
-      case 404:
-        console.error("Not Found:", error.message)
-        break
-      case 500:
-        console.error("Internal Server Error:", error.message)
-        break
-      default:
-        console.error("PocketBase Error:", error.message)
-    }
-  } else {
-    console.error("Unexpected Error:", error)
-  }
-}
-
-/**
- * Formats and parses a string into JSON. If the string is not valid JSON, returns an empty object.
- */
-function parseAndFormatJSON(content: string): object {
-  try {
-    const parsed = JSON.parse(content)
-    return parsed // Returns the parsed JSON object
-  } catch (error) {
-    console.error("Invalid JSON input. Returning an empty object.")
-    return {} // Return an empty object in case of error
-  }
-}
-
-/**
- * Wrapper function specifically for handling the form submission of CreateResumeForm.
- * It creates a new resume with a selected or default template.
- */
-export async function createResumeFromForm(formData: FormData) {
-  const userId = formData.get("userId") as string
-  const name = formData.get("name") as string
-  const content = parseAndFormatJSON(formData.get("content") as string)
-  const templateId = formData.get("templateId") as string
-
-  try {
-    // Reuse the createOrUpdateResume function to handle the creation logic.
-    const newResume = await createOrUpdateResume({
-      user_id: userId,
-      name,
-      content: JSON.stringify(content),
-      template_id: templateId,
-    })
-    return newResume
-  } catch (error) {
-    handlePocketBaseError(error)
-    throw new Error("Failed to create resume from form data. Please try again.")
-  }
-}
-
-/**
- * Creates or updates a resume.
- * This function handles creating a new resume, cloning an existing resume, and managing versions.
- */
-export async function createOrUpdateResume({
-  user_id,
-  name,
-  content,
-  template_id,
-  resume_id_to_clone,
-}: {
-  user_id: string
+export async function cloneResume(
+  resume_id_to_clone: string,
+  user_id: string,
   name: string
-  content: string
-  template_id?: string
-  resume_id_to_clone?: string
-}) {
-  let resume, templateVersion, newResumeVersion
+) {
+  // Fetch the resume to be cloned
+  const resumeToClone = await db
+    .collection("resumes")
+    .getOne(resume_id_to_clone)
+  if (!resumeToClone) throw new Error("Resume to clone not found.")
 
-  try {
-    if (resume_id_to_clone) {
-      // Clone an existing resume
-      const resumeToClone = await db
-        .collection("resumes")
-        .getOne(resume_id_to_clone)
-
-      if (!resumeToClone) {
-        throw new Error("Resume to clone not found.")
-      }
-
-      const resumeVersionToClone = await db
-        .collection("resume_versions")
-        .getOne(resumeToClone.current_version_id)
-
-      if (!resumeVersionToClone) {
-        throw new Error("Resume version to clone not found.")
-      }
-
-      const templateVersionToClone = await db
-        .collection("template_versions")
-        .getOne(resumeVersionToClone.template_version_id)
-
-      if (!templateVersionToClone) {
-        throw new Error("Template version to clone not found.")
-      }
-
-      // Create a new resume based on the clone, but set the correct template and content
-      resume = await db.collection("resumes").create({
-        user_id,
-        name: name || `${resumeToClone.name} (Copy)`,
-        current_version_id: null,
-      })
-
-      // Use the content and template version from the cloned resume version
-      templateVersion = templateVersionToClone
-      // content = content || JSON.stringify(templateVersionToClone.content, null, 2)
-      content = resumeVersionToClone.content
-
-      // Create a new version of the resume, including the content and template version
-      newResumeVersion = await db.collection("resume_versions").create({
-        resume_id: resume.id,
-        version: 1,
-        content: parseAndFormatJSON(content), // This handles the JSON content
-        template_version_id: templateVersion.id, // This handles the template version
-        user_id,
-      })
-    } else {
-      // Creating a new resume
-      if (!template_id) {
-        template_id = await getDefaultTemplateId(user_id)
-      }
-
-      const template = await db.collection("templates").getOne(template_id)
-      templateVersion = await db
-        .collection("template_versions")
-        .getOne(template.current_version_id)
-
-      resume = await db.collection("resumes").create({
-        user_id,
-        name,
-        content,
-        current_version_id: null,
-      })
-    }
-
-    // Create a new version of the resume, including the content and template version
-    newResumeVersion = await db.collection("resume_versions").create({
-      resume_id: resume.id,
-      version: 1,
-      content: parseAndFormatJSON(content), // This handles the JSON content
-      template_version_id: templateVersion.id, // This handles the template version
-      user_id,
+  // Fetch the latest version of the resume to be cloned
+  const resumeVersionToClone = await db
+    .collection("resume_versions")
+    .getList(1, 1, {
+      filter: `resume_id = "${resumeToClone.id}"`,
+      sort: "-version",
     })
+  if (!resumeVersionToClone.items.length)
+    throw new Error("Resume version to clone not found.")
 
-    // Update resume with the initial version_id
-    return await db.collection("resumes").update(resume.id, {
-      current_version_id: newResumeVersion.id,
-    })
-  } catch (error) {
-    console.error("Error in createOrUpdateResume:", error)
-    handlePocketBaseError(error)
-    throw new Error("Failed to create or update resume. Please try again.")
-  }
+  // Fetch the template version associated with the resume version
+  const templateVersionToClone = await db
+    .collection("template_versions")
+    .getOne(resumeVersionToClone.items[0].template_version_id)
+  if (!templateVersionToClone)
+    throw new Error("Template version to clone not found.")
+
+  const originalTemplate = await db
+    .collection("templates")
+    .getOne(templateVersionToClone.template_id)
+
+  // Clone the template
+  const newTemplate = await db.collection("templates").create({
+    user_id,
+    name: `${originalTemplate.name} (Copy)`,
+    // Other necessary fields can be copied from the original template
+  })
+
+  // Create a new template version based on the cloned template
+  const newTemplateVersion = await db.collection("template_versions").create({
+    template_id: newTemplate.id,
+    version: 1, // Start new template version from 1
+    markup: templateVersionToClone.markup, // Use the markup from the original template version
+    user_id,
+  })
+
+  // Create a new resume based on the clone
+  const newResume = await db.collection("resumes").create({
+    user_id,
+    name: name || `${resumeToClone.name} (Copy)`,
+  })
+
+  // Create a new version of the resume with cloned content and link to the new template version
+  const newResumeVersion = await db.collection("resume_versions").create({
+    resume_id: newResume.id,
+    version: 1, // new resume & version mean we go back to version 1
+    content: resumeVersionToClone.items[0].content, // Use the content from the latest version
+    template_version_id: newTemplateVersion.id, // Link to the new template version
+    user_id,
+  })
+
+  return newResumeVersion
 }
-
 /**
- * Fetches the content and template markup for a given resume.
+ * Saves a new version of the resume's content and template.
  */
-export async function fetchResumeData(resumeId: string) {
-  try {
-    const resume = await db.collection("resumes").getOne(resumeId)
-    const resumeVersion = await db
-      .collection("resume_versions")
-      .getOne(resume.current_version_id)
-    const templateVersion = await db
-      .collection("template_versions")
-      .getOne(resumeVersion.template_version_id)
-
-    return {
-      name: resume.name,
-      content: resume.content,
-      markup: templateVersion.markup,
-    }
-  } catch (error) {
-    handlePocketBaseError(error)
-    throw new Error("Failed to fetch resume data.")
-  }
-}
-
-/**
- * Saves the content and template markup for a given resume, creating a new version if necessary.
- */
-export async function saveResumeContent(
+export async function saveResumeVersion(
   resume_id: string,
   name: string,
   content: string,
   markup: string
 ) {
+  console.warn("saveResumeVersion.1")
   const user = await getCurrentUser()
 
   try {
-    const resume = await db.collection("resumes").getOne(resume_id)
-    const resumeVersion = await db
+    // Get the latest resume version for the given resume_id
+    const currentResumeVersion = await db
       .collection("resume_versions")
-      .getOne(resume.current_version_id)
+      .getFirstListItem(`resume_id = "${resume_id}"`, {
+        sort: "-version",
+      })
+    console.warn("saveResumeVersion.2")
+
+    if (!currentResumeVersion) {
+      throw new Error("No existing resume version found.")
+    }
+
+    // Get the template_version_id from the current resume version
     const currentTemplateVersion = await db
       .collection("template_versions")
-      .getOne(resumeVersion.template_version_id)
+      .getOne(currentResumeVersion.template_version_id)
+    if (!currentTemplateVersion) {
+      throw new Error("No existing template version found.")
+    }
 
-    // Create a new version of the template if the markup has changed
-    let newTemplateVersionId = currentTemplateVersion.id
-    if (currentTemplateVersion.markup !== markup) {
+    // Get the latest template version based on the template_id from the current template version
+    const latestTemplateVersion = await db
+      .collection("template_versions")
+      .getFirstListItem(
+        `template_id = "${currentTemplateVersion.template_id}"`,
+        {
+          sort: "-version",
+        }
+      )
+
+    if (!latestTemplateVersion) {
+      throw new Error("No template versions found.")
+    }
+
+    let newTemplateVersionId = latestTemplateVersion.id
+    if (latestTemplateVersion.markup !== markup) {
+      console.warn("saveResumeVersion.4")
       const newTemplateVersion = await db
         .collection("template_versions")
         .create({
-          template_id: currentTemplateVersion.template_id,
+          template_id: latestTemplateVersion.template_id,
           markup,
-          version: currentTemplateVersion.version + 1,
+          version: latestTemplateVersion.version + 1,
           user_id: user.id,
         })
+      console.warn("saveResumeVersion.5")
       newTemplateVersionId = newTemplateVersion.id
     }
 
-    // Ensure that content is a valid JSON string
-    let parsedContent
-    try {
-      parsedContent = JSON.parse(content)
-    } catch (e) {
-      throw new Error("Invalid JSON format")
-    }
-
-    // Create a new version of the resume
+    console.warn("saveResumeVersion.6")
     const newResumeVersion = await db.collection("resume_versions").create({
-      resume_id: resume.id,
-      version: resumeVersion.version + 1,
-      content: parsedContent,
+      resume_id: resume_id,
+      version: currentResumeVersion.version + 1,
+      content: parseAndFormatJSON(content),
       template_version_id: newTemplateVersionId,
-      user_id: resume.user_id,
+      user_id: user.id,
     })
+    console.warn("saveResumeVersion.7")
 
-    // Update the resume to point to the new version
-    const updatedResume = await db.collection("resumes").update(resume.id, {
-      name,
-      content: parsedContent,
-      current_version_id: newResumeVersion.id,
-    })
-
-    return updatedResume
+    return newResumeVersion
   } catch (error) {
+    console.warn("saveResumeVersion.8")
     handlePocketBaseError(error)
-    throw new Error("Failed to save resume content. Please try again.")
+    throw new Error("Failed to save resume version. Please try again.")
   }
 }
 
-export async function saveHtmlContent(resumeId: string, htmlContent: string) {
-  const user = await getCurrentUser()
+/**
 
-  if (!user) {
-    throw new Error("User is not authenticated")
-  }
-
+ •	Fetches the content, template markup, and name for a given resume.
+ */
+export async function fetchResumeData(resumeId: string) {
   try {
-    // Fetch the current resume version
-    const resume = await db.collection("resumes").getOne(resumeId)
-    const resumeVersion = await db
-      .collection("resume_versions")
-      .getOne(resume.current_version_id)
+    const originalResume = await db.collection("resumes").getOne(resumeId)
 
-    // Save the HTML content to the resume version
-    const updatedResumeVersion = await db
+    const resumeVersionList = await db
       .collection("resume_versions")
-      .update(resumeVersion.id, {
-        html_content: htmlContent, // Assuming you have an `html_content` field in `resume_versions`
+      .getList(1, 1, {
+        filter: `resume_id = "${resumeId}"`,
+        sort: "-version",
       })
 
+    const resumeVersion = resumeVersionList.items[0]
+    const templateVersion = await db
+      .collection("template_versions")
+      .getOne(resumeVersion.template_version_id)
     return {
-      success: true,
-      resumeVersionId: updatedResumeVersion.id,
-      resumeVersionUrl: `/resume/${resumeId}/preview`, // URL to access the preview,
-      content_blob: htmlContent,
+      name: originalResume.name,
+      content: resumeVersion.content,
+      markup: templateVersion.markup,
     }
   } catch (error) {
-    console.error("Error saving HTML content:", error)
-    throw new Error("Failed to save HTML content. Please try again.")
+    handlePocketBaseError(error)
+    throw new Error("Failed to fetch resume data.")
   }
 }

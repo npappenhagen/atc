@@ -1,23 +1,20 @@
 "use client"
+
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import JsonEditor from "@/components/json-editor"
 import CodeEditor from "@/components/code-editor"
 import PreviewOnly from "@/components/preview-only"
-import { saveResumeContent, fetchResumeData } from "@/app/actions"
+import { saveResumeVersion, fetchResumeData } from "@/app/actions"
 import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { redirect, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import {
   ResizablePanel,
   ResizablePanelGroup,
   ResizableHandle,
 } from "@/components/ui/resizable"
 import { useLiveRunner } from "react-live-runner"
-
-const tailwindCSS = `
-@import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
-`
 
 const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
   const { resumeId } = params
@@ -41,6 +38,7 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
   const scope = useMemo(
     () => ({
       React,
+      // injects the json values that the jsx uses into scope.
       resume_values: jsonContent || {},
     }),
     [jsonContent]
@@ -52,48 +50,26 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
     scope,
   })
 
-  const handleSaveJson = useCallback(
-    async (updatedJson: any) => {
-      try {
-        const formattedJson = JSON.stringify(updatedJson, null, 2)
-        await saveResumeContent(
-          resumeId,
-          resume.name,
-          formattedJson,
-          code // Saving the current code as markup
-        )
-        setJsonContent(updatedJson)
-        toast({
-          title: "Success",
-          description: "Resume JSON saved successfully.",
-        })
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to save resume JSON.",
-        })
-      }
-    },
-    [resume, code, resumeId, toast]
-  )
-
-  const handleSaveMarkup = useCallback(async () => {
+  const handleSaveResumeVersion = useCallback(async () => {
     try {
-      await saveResumeContent(
+      await saveResumeVersion(
         resumeId,
         resume.name,
         JSON.stringify(jsonContent, null, 2),
         code // Using current code from useLiveRunner
       )
-      setMarkup(code)
       toast({
         title: "Success",
-        description: "Resume markup saved successfully.",
+        description: "Version saved successfully.",
       })
     } catch (error) {
+      console.warn(
+        "handleSaveResumeVersion.error",
+        JSON.stringify(error, null, 2)
+      )
       toast({
         title: "Error",
-        description: "Failed to save resume markup.",
+        description: "Failed to save version.",
       })
     }
   }, [resume, code, jsonContent, resumeId, toast])
@@ -115,8 +91,6 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
         </body>
       </html>
     `
-
-    // Store the HTML content in localStorage
     localStorage.setItem("previewHtml", htmlContent)
   }
 
@@ -134,13 +108,11 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
     const blob = new Blob([htmlDoc], { type: "text/html" })
     const url = URL.createObjectURL(blob)
 
-    // Create a link element
     const link = document.createElement("a")
     link.href = url
     // could be nice to have a 'config' for the scheme of saving the resume name, so users could configure their preferred scheme.
-    link.download = `${resume.name}-Resume.html` // Customize the filename as needed
+    link.download = `${resume.name}-Resume.html`
 
-    // Append the link to the document and trigger a click
     document.body.appendChild(link)
     link.click()
 
@@ -176,6 +148,9 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
           >
             {isEditing ? "Hide Editors" : "Show Editors"}
           </Button>
+          <Button variant="primary" onClick={handleSaveResumeVersion}>
+            Save
+          </Button>
         </div>
       </div>
 
@@ -195,7 +170,7 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
               >
                 <JsonEditor
                   initialJson={jsonContent}
-                  onSave={handleSaveJson}
+                  onSave={handleSaveResumeVersion}
                   onChange={(newJson) => {
                     setJsonContent(newJson)
                     onChange(code)
@@ -209,7 +184,7 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
               >
                 <CodeEditor
                   initialMarkup={code}
-                  onSave={handleSaveMarkup}
+                  onSave={handleSaveResumeVersion}
                   onChange={(newMarkup) => {
                     setMarkup(newMarkup)
                     onChange(newMarkup)
@@ -224,7 +199,6 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
           defaultSize={isEditing ? 40 : 100}
           className="bg-white p-4 rounded-lg shadow-md overflow-auto flex justify-center items-center"
         >
-          <h2 className="text-xl font-semibold mb-4">Live Preview</h2>
           <div id="resume-preview">
             <PreviewOnly element={element} error={error} />
           </div>

@@ -1,7 +1,7 @@
 import React from "react"
 import { CodeMirror } from "@/components/live-runner"
 
-const CodeEditor = ({ initialMarkup, onSave, onChange }) => {
+const CodeEditor = ({ initialMarkup, onChange }) => {
   return (
     <div className="flex flex-col h-full">
       <CodeMirror
@@ -11,12 +11,6 @@ const CodeEditor = ({ initialMarkup, onSave, onChange }) => {
         language="jsx"
         onChange={onChange}
       />
-      <button
-        className="bg-blue-500 text-white py-2 px-4 rounded mt-4 self-end"
-        onClick={() => onSave(initialMarkup)}
-      >
-        Save Markup
-      </button>
     </div>
   )
 }
