@@ -21,6 +21,7 @@
     make dev
  - this will initiate the docker compose up build pocketbase locally, add litestream to the docker container, spin up `minio` for local s3 replication, and handle any migrations that need to happen.
  - If it's your first time running, you'll need to configure the `file storage` in the pocketbase `admin` to point to the minio targets present in the Makefile/Dockerfile/docker-compose/litestream.yml
+![configure_litestream_as_file_storage.png.png](static/configure_litestream_as_file_storage.png)
 
 ## Production
 - Deploys happen to `fly.io` and so we need to set some secrets for the AWS access id and secret, s3 name. This is handled in the `Makefile`
