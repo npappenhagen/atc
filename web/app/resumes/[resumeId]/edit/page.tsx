@@ -14,6 +14,7 @@ import {
   ResizablePanelGroup,
   ResizableHandle,
 } from "@/components/ui/resizable"
+import { Sun, Moon, Code, FileText } from "lucide-react"
 import { useLiveRunner } from "react-live-runner"
 
 const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
@@ -24,6 +25,8 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
   const [isEditing, setIsEditing] = useState(true)
   const { toast } = useToast()
   const router = useRouter()
+
+  const [activeTab, setActiveTab] = useState("content")
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,7 +41,6 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
   const scope = useMemo(
     () => ({
       React,
-      // injects the json values that the jsx uses into scope.
       resume_values: jsonContent || {},
     }),
     [jsonContent]
@@ -56,17 +58,13 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
         resumeId,
         resume.name,
         JSON.stringify(jsonContent, null, 2),
-        code // Using current code from useLiveRunner
+        code
       )
       toast({
         title: "Success",
         description: "Version saved successfully.",
       })
     } catch (error) {
-      console.warn(
-        "handleSaveResumeVersion.error",
-        JSON.stringify(error, null, 2)
-      )
       toast({
         title: "Error",
         description: "Failed to save version.",
@@ -110,7 +108,6 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
 
     const link = document.createElement("a")
     link.href = url
-    // could be nice to have a 'config' for the scheme of saving the resume name, so users could configure their preferred scheme.
     link.download = `${resume.name}-Resume.html`
 
     document.body.appendChild(link)
@@ -123,7 +120,7 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
   if (!resume) return <p>Loading...</p>
 
   return (
-    <div className="flex flex-col space-y-6 p-6 h-full">
+    <div className="flex flex-col space-y-6 p-6 h-full bg-gray-50 dark:bg-gray-900">
       <div className="flex justify-between items-center mb-4">
         <Input
           placeholder="Resume Name"
@@ -151,59 +148,98 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
           <Button variant="primary" onClick={handleSaveResumeVersion}>
             Save
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              document.documentElement.classList.toggle("dark")
+            }}
+          >
+            {document.documentElement.classList.contains("dark") ? (
+              <Sun />
+            ) : (
+              <Moon />
+            )}
+          </Button>
         </div>
       </div>
 
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        {isEditing && (
+      <div className="flex h-full">
+        {/* Tabs at the top for Content and Template */}
+        <div className="flex items-center space-x-2 border-b dark:border-gray-700">
+          <button
+            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium ${
+              activeTab === "content"
+                ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                : "text-gray-500 dark:text-gray-400"
+            } border-t border-l border-r dark:border-gray-700 rounded-t-md`}
+            onClick={() => setActiveTab("content")}
+          >
+            <Code className="h-4 w-4" />
+            <span>Content</span>
+          </button>
+
+          <button
+            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium ${
+              activeTab === "template"
+                ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                : "text-gray-500 dark:text-gray-400"
+            } border-t border-l border-r dark:border-gray-700 rounded-t-md`}
+            onClick={() => setActiveTab("template")}
+          >
+            <FileText className="h-4 w-4" />
+            <span>Template</span>
+          </button>
+        </div>
+
+        {/* Resizable Panels */}
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
           <ResizablePanel
             defaultSize={30}
-            className="flex flex-col space-y-2 min-h-[400px] h-full transition-transform duration-300 ease-in-out"
+            className={`flex flex-col space-y-2 min-h-[400px] h-full transition-transform duration-300 ease-in-out border-r dark:border-gray-700 ${
+              activeTab === "content" ? "" : "hidden"
+            }`}
           >
-            <ResizablePanelGroup
-              direction="horizontal"
-              className="flex-1 overflow-hidden"
-            >
-              <ResizablePanel
-                defaultSize={50}
-                className="flex flex-col min-h-[400px] h-auto"
-              >
-                <JsonEditor
-                  initialJson={jsonContent}
-                  onSave={handleSaveResumeVersion}
-                  onChange={(newJson) => {
-                    setJsonContent(newJson)
-                    onChange(code)
-                  }}
-                />
-              </ResizablePanel>
-              <ResizableHandle className="cursor-row-resize" />
-              <ResizablePanel
-                defaultSize={50}
-                className="flex flex-col min-h-[400px] h-auto"
-              >
-                <CodeEditor
-                  initialMarkup={code}
-                  onSave={handleSaveResumeVersion}
-                  onChange={(newMarkup) => {
-                    setMarkup(newMarkup)
-                    onChange(newMarkup)
-                  }}
-                />
-              </ResizablePanel>
-            </ResizablePanelGroup>
+            <JsonEditor
+              initialJson={jsonContent}
+              onSave={handleSaveResumeVersion}
+              onChange={(newJson) => {
+                setJsonContent(newJson)
+                onChange(code)
+              }}
+            />
           </ResizablePanel>
-        )}
-        <ResizableHandle className="cursor-col-resize" />
-        <ResizablePanel
-          defaultSize={isEditing ? 40 : 100}
-          className="bg-white p-4 rounded-lg shadow-md overflow-auto flex justify-center items-center"
-        >
-          <div id="resume-preview">
-            <PreviewOnly element={element} error={error} />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+
+          <ResizablePanel defaultSize={30}>
+            <ResizablePanel defaultSize={30}>
+              <div className="flex h-full items-center justify-center p-6">
+                <span className="font-semibold">Header</span>
+              </div>
+            </ResizablePanel>
+            <CodeEditor
+              initialMarkup={code}
+              onSave={handleSaveResumeVersion}
+              onChange={(newMarkup) => {
+                setMarkup(newMarkup)
+                onChange(newMarkup)
+              }}
+            />
+          </ResizablePanel>
+
+          <ResizableHandle className="cursor-col-resize" />
+
+          <ResizablePanel
+            defaultSize={isEditing ? 40 : 100}
+            className="bg-white dark:bg-gray-850 p-4 rounded-lg shadow-md overflow-auto flex flex-col justify-start items-center min-w-[300px]"
+          >
+            <div className="w-full p-2 text-center text-sm font-medium bg-gray-200 dark:bg-gray-700 border-b dark:border-gray-600">
+              Resume Preview
+            </div>
+            <div id="resume-preview" className="flex-1 w-full">
+              <PreviewOnly element={element} error={error} />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
     </div>
   )
 }

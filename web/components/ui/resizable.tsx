@@ -42,4 +42,21 @@ const ResizableHandle = ({
   </ResizablePrimitive.PanelResizeHandle>
 )
 
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle }
+const ResizableTab = ({
+  title,
+  className,
+}: {
+  title: string
+  className?: string
+}) => (
+  <div
+    className={cn(
+      "p-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700",
+      className
+    )}
+  >
+    {title}
+  </div>
+)
+
+export { ResizablePanelGroup, ResizablePanel, ResizableHandle, ResizableTab }
