@@ -250,6 +250,7 @@ export async function cloneResume(
 
   return newResumeVersion
 }
+
 /**
  * Saves a new version of the resume's content and template.
  */
@@ -297,6 +298,7 @@ export async function saveResumeVersion(
       throw new Error("No template versions found.")
     }
 
+    // Check if the markup has changed
     let newTemplateVersionId = latestTemplateVersion.id
     if (latestTemplateVersion.markup !== markup) {
       console.warn("saveResumeVersion.4")
@@ -312,6 +314,18 @@ export async function saveResumeVersion(
       newTemplateVersionId = newTemplateVersion.id
     }
 
+    // Check if the content has changed
+    // content is already JSON.stringify(content,null, 2) - but the currentResumeVersion is an actual JS object.
+    const isContentUnchanged =
+      content === JSON.stringify(currentResumeVersion.content, null, 2)
+    const isTemplateUnchanged = latestTemplateVersion.markup === markup
+
+    if (isContentUnchanged && isTemplateUnchanged) {
+      console.warn("No changes to content or template markup, exiting save.")
+      throw new Error("No changes detected. No new version was created.")
+    }
+
+    // Save the new resume version
     console.warn("saveResumeVersion.6")
     const newResumeVersion = await db.collection("resume_versions").create({
       resume_id: resume_id,
@@ -325,8 +339,11 @@ export async function saveResumeVersion(
     return newResumeVersion
   } catch (error) {
     console.warn("saveResumeVersion.8")
+    if (error.message === "No changes detected. No new version was created.") {
+      throw new Error("No changes detected. No new version was created.")
+    }
     handlePocketBaseError(error)
-    throw new Error("Failed to save resume version. Please try again.")
+    throw new Error("Failed to save version.")
   }
 }
 

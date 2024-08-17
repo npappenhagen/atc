@@ -14,7 +14,7 @@ import {
   ResizablePanelGroup,
   ResizableHandle,
 } from "@/components/ui/resizable"
-import { Sun, Moon, Code, FileText } from "lucide-react"
+import { Sun, Moon, Code, FileText, Eye } from "lucide-react"
 import { useLiveRunner } from "react-live-runner"
 
 const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
@@ -23,10 +23,9 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
   const [markup, setMarkup] = useState("")
   const [jsonContent, setJsonContent] = useState({})
   const [isEditing, setIsEditing] = useState(true)
+  const [activeTab, setActiveTab] = useState<"content" | "template">("content")
   const { toast } = useToast()
   const router = useRouter()
-
-  const [activeTab, setActiveTab] = useState("content")
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,55 +66,10 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save version.",
+        description: error.message,
       })
     }
   }, [resume, code, jsonContent, resumeId, toast])
-
-  const saveHtmlToLocalStorage = () => {
-    const element = document.getElementById("resume-preview")
-    if (!element) return
-
-    const htmlContent = `
-      <html>
-        <head>
-          <style>
-            ${document.getElementsByTagName("style")[0].innerHTML}
-          </style>
-          <title>${resume.name} - Resume</title>
-        </head>
-        <body>
-          ${element.outerHTML}
-        </body>
-      </html>
-    `
-    localStorage.setItem("previewHtml", htmlContent)
-  }
-
-  const previewHtml = () => {
-    saveHtmlToLocalStorage()
-    router.push(`/resumes/${resumeId}/preview`)
-  }
-
-  const downloadHtml = () => {
-    saveHtmlToLocalStorage()
-    const htmlDoc = localStorage.getItem("previewHtml")
-
-    if (!htmlDoc) return
-
-    const blob = new Blob([htmlDoc], { type: "text/html" })
-    const url = URL.createObjectURL(blob)
-
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `${resume.name}-Resume.html`
-
-    document.body.appendChild(link)
-    link.click()
-
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
 
   if (!resume) return <p>Loading...</p>
 
@@ -132,17 +86,16 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
           className="mr-4"
         />
         <div className="flex space-x-4">
-          <Button variant="outline" onClick={previewHtml}>
-            Preview
-          </Button>
-          <Button variant="outline" onClick={downloadHtml}>
-            Download HTML
-          </Button>
           <Button
             variant="outline"
-            onClick={() => setIsEditing(!isEditing)}
-            className="transition duration-300 ease-in-out"
+            onClick={() => router.push(`/resumes/${resumeId}/preview`)}
           >
+            Preview
+          </Button>
+          <Button variant="outline" onClick={() => saveHtmlToLocalStorage()}>
+            Download HTML
+          </Button>
+          <Button variant="outline" onClick={() => setIsEditing(!isEditing)}>
             {isEditing ? "Hide Editors" : "Show Editors"}
           </Button>
           <Button variant="primary" onClick={handleSaveResumeVersion}>
@@ -150,9 +103,7 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
           </Button>
           <Button
             variant="outline"
-            onClick={() => {
-              document.documentElement.classList.toggle("dark")
-            }}
+            onClick={() => document.documentElement.classList.toggle("dark")}
           >
             {document.documentElement.classList.contains("dark") ? (
               <Sun />
@@ -163,83 +114,74 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
         </div>
       </div>
 
-      <div className="flex h-full">
-        {/* Tabs at the top for Content and Template */}
-        <div className="flex items-center space-x-2 border-b dark:border-gray-700">
-          <button
-            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium ${
-              activeTab === "content"
-                ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                : "text-gray-500 dark:text-gray-400"
-            } border-t border-l border-r dark:border-gray-700 rounded-t-md`}
-            onClick={() => setActiveTab("content")}
-          >
-            <Code className="h-4 w-4" />
-            <span>Content</span>
-          </button>
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        <ResizablePanel
+          defaultSize={isEditing ? 50 : 0}
+          minSize={0}
+          className={`transition-all duration-300 ease-in-out border-r dark:border-gray-700 ${
+            isEditing ? "block" : "hidden"
+          }`}
+        >
+          <div className="flex flex-col h-full">
+            <div className="flex items-center space-x-2 border-b dark:border-gray-700">
+              <button
+                className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium ${
+                  activeTab === "content"
+                    ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    : "text-gray-500 dark:text-gray-400"
+                } border-t border-l border-r dark:border-gray-700 rounded-t-md`}
+                onClick={() => setActiveTab("content")}
+              >
+                <Code className="h-4 w-4" />
+                <span>Content</span>
+              </button>
 
-          <button
-            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium ${
-              activeTab === "template"
-                ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                : "text-gray-500 dark:text-gray-400"
-            } border-t border-l border-r dark:border-gray-700 rounded-t-md`}
-            onClick={() => setActiveTab("template")}
-          >
-            <FileText className="h-4 w-4" />
-            <span>Template</span>
-          </button>
-        </div>
-
-        {/* Resizable Panels */}
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
-          <ResizablePanel
-            defaultSize={30}
-            className={`flex flex-col space-y-2 min-h-[400px] h-full transition-transform duration-300 ease-in-out border-r dark:border-gray-700 ${
-              activeTab === "content" ? "" : "hidden"
-            }`}
-          >
-            <JsonEditor
-              initialJson={jsonContent}
-              onSave={handleSaveResumeVersion}
-              onChange={(newJson) => {
-                setJsonContent(newJson)
-                onChange(code)
-              }}
-            />
-          </ResizablePanel>
-
-          <ResizablePanel defaultSize={30}>
-            <ResizablePanel defaultSize={30}>
-              <div className="flex h-full items-center justify-center p-6">
-                <span className="font-semibold">Header</span>
-              </div>
-            </ResizablePanel>
-            <CodeEditor
-              initialMarkup={code}
-              onSave={handleSaveResumeVersion}
-              onChange={(newMarkup) => {
-                setMarkup(newMarkup)
-                onChange(newMarkup)
-              }}
-            />
-          </ResizablePanel>
-
-          <ResizableHandle className="cursor-col-resize" />
-
-          <ResizablePanel
-            defaultSize={isEditing ? 40 : 100}
-            className="bg-white dark:bg-gray-850 p-4 rounded-lg shadow-md overflow-auto flex flex-col justify-start items-center min-w-[300px]"
-          >
-            <div className="w-full p-2 text-center text-sm font-medium bg-gray-200 dark:bg-gray-700 border-b dark:border-gray-600">
-              Resume Preview
+              <button
+                className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium ${
+                  activeTab === "template"
+                    ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    : "text-gray-500 dark:text-gray-400"
+                } border-t border-l border-r dark:border-gray-700 rounded-t-md`}
+                onClick={() => setActiveTab("template")}
+              >
+                <FileText className="h-4 w-4" />
+                <span>Template</span>
+              </button>
             </div>
-            <div id="resume-preview" className="flex-1 w-full">
-              <PreviewOnly element={element} error={error} />
+
+            <div className="flex-1 overflow-auto">
+              {activeTab === "content" && (
+                <JsonEditor
+                  initialJson={jsonContent}
+                  onSave={handleSaveResumeVersion}
+                  onChange={(newJson) => setJsonContent(newJson)}
+                  className="h-full"
+                />
+              )}
+
+              {activeTab === "template" && (
+                <CodeEditor
+                  initialMarkup={code}
+                  onSave={handleSaveResumeVersion}
+                  onChange={(newMarkup) => setMarkup(newMarkup)}
+                  className="h-full"
+                />
+              )}
             </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle className="cursor-col-resize" />
+
+        <ResizablePanel
+          defaultSize={50}
+          className="bg-white dark:bg-gray-850 p-4 rounded-lg shadow-md flex flex-col"
+        >
+          <div className="flex-1 overflow-auto">
+            <PreviewOnly element={element} error={error} />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   )
 }
