@@ -376,3 +376,118 @@ export async function fetchResumeData(resumeId: string) {
     throw new Error("Failed to fetch resume data.")
   }
 }
+
+// Function to fetch public templates without requiring authentication
+export async function fetchPublicTemplates() {
+  try {
+    const publicTemplates = await db.collection("templates").getFullList({
+      filter: "published = true",
+    })
+    return publicTemplates
+  } catch (error) {
+    console.error("Failed to fetch public templates:", error.message)
+    throw error
+  }
+}
+
+// export async function fetchPublicTemplatesWithVersion() {
+//   try {
+//     console.warn("fetchPublicTemplatesWithVersion.1")
+//     // Fetch public templates with autoCancel disabled
+//     const publicTemplates = await db.collection("templates").getFullList({
+//       filter: "published = true",
+//       autoCancel: false, // Disable auto-cancellation
+//     })
+//
+//     console.warn(
+//       "fetchPublicTemplatesWithVersion.2",
+//       JSON.stringify(publicTemplates, null, 2)
+//     )
+//
+//     // For each template, fetch the latest associated template-version
+//     const publicTemplatesWithVersions = await Promise.all(
+//       publicTemplates.map(async (template) => {
+//         console.warn(
+//           "fetchPublicTemplatesWithVersion.3.template",
+//           JSON.stringify(template, null, 2)
+//         )
+//         const templateVersionList = await db
+//           .collection("template_versions")
+//           .getList(1, 1, {
+//             filter: `template_id = "${template.id}"`,
+//             sort: "-version",
+//             autoCancel: false, // Disable auto-cancellation
+//           })
+//         console.warn(
+//           "fetchPublicTemplatesWithVersion.4.templateVersionList",
+//           JSON.stringify(templateVersionList, null, 2)
+//         )
+//
+//         const latestTemplateVersion = templateVersionList.items[0]
+//
+//         console.warn(
+//           "fetchPublicTemplatesWithVersion.5.templateVersionList",
+//           JSON.stringify(latestTemplateVersion, null, 2)
+//         )
+//
+//         return {
+//           id: template.id,
+//           name: template.name,
+//           templateVersion: latestTemplateVersion,
+//         }
+//       })
+//     )
+//
+//     return publicTemplatesWithVersions
+//   } catch (error) {
+//     console.error("Failed to fetch public templates with versions:", error)
+//     throw new Error("Failed to fetch public templates.")
+//   }
+// }
+
+export async function fetchPublicTemplatesWithVersion() {
+  try {
+    console.warn("fetchPublicTemplatesWithVersion.1.template")
+
+    // Fetch the latest template versions where the related template's `published` field is true
+    const publicTemplateVersions = await db
+      .collection("template_versions")
+      .getList(1, 20, {
+        rawParams: {
+          max_field: "version",
+        },
+        filter: "template_id.published = true", // Ensure template is published && only select the max version
+        sort: "-version", // Sort by version to get the latest one
+        expand: "template_id", // Include related template data
+      })
+
+    console.warn(
+      "fetchPublicTemplatesWithVersion.2.publicTemplateVersions",
+      JSON.stringify(publicTemplateVersions.items, null, 2)
+    )
+
+    // Mapping the results to extract relevant fields
+    const publicTemplatesWithVersions = publicTemplateVersions.items.map(
+      (templateVersion) => {
+        const template = templateVersion.expand?.template_id // Access expanded template data
+
+        if (!template) {
+          throw new Error(
+            `No template found for template version: ${templateVersion.id}`
+          )
+        }
+
+        return {
+          id: template.id,
+          name: template.name,
+          templateVersion: templateVersion,
+        }
+      }
+    )
+
+    return publicTemplatesWithVersions
+  } catch (error) {
+    console.error("Failed to fetch public templates with versions:", error)
+    throw new Error("Failed to fetch public templates.")
+  }
+}

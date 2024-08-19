@@ -21,4 +21,5 @@ litestream replicate -config ./etc/litestream.yml &
 
 # Start PocketBase server
 echo "Starting PocketBase server..."
-./pocketbase serve --http=0.0.0.0:8080
+# TODO: remove / parametrize `--dev` before production.
+./pocketbase serve --http=0.0.0.0:8080 --dev

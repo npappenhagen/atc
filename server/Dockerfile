@@ -27,6 +27,9 @@ COPY --from=builder /pb/pocketbase ./pocketbase
 COPY ./entrypoint.sh ./entrypoint.sh
 COPY ./etc/litestream.yml ./etc/litestream.yml
 
+# We need the js pocketbase hooks to be available in the container.
+COPY ./pb_hooks/main.pb.js ./pb_hooks/main.pb.js
+
 RUN chmod +x entrypoint.sh
 
 EXPOSE 8080

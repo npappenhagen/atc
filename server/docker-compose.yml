@@ -4,6 +4,7 @@ services:
       context: .
     volumes:
       - ./pb_data:/pb/pb_data
+      - ./pb_hooks:/pb/pb_hooks
     ports:
       - "8080:8080"
     env_file:

@@ -26,7 +26,7 @@ func main() {
 	app.RootCmd.PersistentFlags().StringVar(
 		&hooksDir,
 		"hooksDir",
-		"",
+		"./pb_hooks",
 		"the directory with the JS app hooks",
 	)
 
