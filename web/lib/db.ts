@@ -1,5 +1,6 @@
 import PocketBase from "pocketbase"
 
+// TODO: set the pocketbase URL dynamically for deployed vs local processes.
 const db = new PocketBase("http://localhost:8080")
 
 /**

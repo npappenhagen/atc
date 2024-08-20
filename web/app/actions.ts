@@ -450,37 +450,38 @@ export async function fetchPublicTemplatesWithVersion() {
     console.warn("fetchPublicTemplatesWithVersion.1.template")
 
     // Fetch the latest template versions where the related template's `published` field is true
-    const publicTemplateVersions = await db
-      .collection("template_versions")
+    const rawPublicTemplatesWithVersion = await db
+      .collection("templates")
       .getList(1, 20, {
-        rawParams: {
-          max_field: "version",
-        },
-        filter: "template_id.published = true", // Ensure template is published && only select the max version
-        sort: "-version", // Sort by version to get the latest one
-        expand: "template_id", // Include related template data
+        expand: "current_version",
+        filter: " published = true && current_version != null ", // Ensure template is published && only select the max version
       })
 
     console.warn(
-      "fetchPublicTemplatesWithVersion.2.publicTemplateVersions",
-      JSON.stringify(publicTemplateVersions.items, null, 2)
+      "fetchPublicTemplatesWithVersion.2.rawPublicTemplatesWithVersion",
+      JSON.stringify(rawPublicTemplatesWithVersion.items, null, 2)
     )
 
     // Mapping the results to extract relevant fields
-    const publicTemplatesWithVersions = publicTemplateVersions.items.map(
-      (templateVersion) => {
-        const template = templateVersion.expand?.template_id // Access expanded template data
+    const publicTemplatesWithVersions = rawPublicTemplatesWithVersion.items.map(
+      (t) => {
+        const currentTemplateVersion = t?.expand?.current_version
+        console.warn(
+          `currentTemplateVersion: currentTemplateVersion:`,
+          currentTemplateVersion
+        )
 
-        if (!template) {
-          throw new Error(
-            `No template found for template version: ${templateVersion.id}`
+        if (!currentTemplateVersion) {
+          console.error(
+            `No currentTemplateVersion :(: currentTemplateVersion: ${currentTemplateVersion.id}`
           )
+          return
         }
 
         return {
-          id: template.id,
-          name: template.name,
-          templateVersion: templateVersion,
+          id: t.id,
+          name: t.name,
+          templateVersion: currentTemplateVersion,
         }
       }
     )
