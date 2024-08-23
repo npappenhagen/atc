@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { User } from "next-auth"
-import { db } from "@/lib/db"
 
 import {
   DropdownMenu,

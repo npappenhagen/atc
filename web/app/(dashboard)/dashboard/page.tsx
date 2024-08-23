@@ -9,11 +9,16 @@ export default async function DashboardPage() {
   const user = await getCurrentUser()
 
   if (!user) {
+    console.error("lost user", JSON.stringify(user))
     return notFound()
   }
 
   const templates = await fetchTemplates()
   const resumes = await fetchResumes(user.id)
+
+  if (resumes.length == 0) {
+    console.error("lost resumes", JSON.stringify(resumes))
+  }
 
   return (
     <DashboardShell>

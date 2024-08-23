@@ -23,6 +23,8 @@ import { toast } from "@/components/ui/use-toast"
 import { Icons } from "@/components/icons"
 import useClientsidePocketbase from "@/hooks/use-clientside-pocketbase"
 
+import { User } from "next-auth"
+
 interface UserNameFormProps extends React.HTMLAttributes<HTMLFormElement> {
   user: Pick<User, "id" | "name">
 }

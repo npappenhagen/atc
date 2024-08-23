@@ -11,6 +11,9 @@ services:
       - .env
     depends_on:
       - minio
+      - mailcrab
+    networks:
+      - pb_network
 
   minio:
     image: minio/minio
@@ -23,3 +26,17 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
       MINIO_DOMAIN: myminioserver
     command: server /data --address 0.0.0.0:9000
+    networks:
+      - pb_network
+
+  mailcrab:
+    image: marlonb/mailcrab:latest
+    ports:
+      - "1080:1080"
+      - "1025:1025"
+    networks:
+      - pb_network
+
+networks:
+  pb_network:
+    driver: bridge

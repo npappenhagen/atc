@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const authCookie = cookies().get("pb_auth")
     if (!authCookie) {
+      console.error("Authentication cookie not found")
       throw new Error("Authentication cookie not found")
     }
 

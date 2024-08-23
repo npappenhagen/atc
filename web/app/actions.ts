@@ -5,6 +5,7 @@ import { cookies } from "next/headers"
 import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/session"
 import { ClientResponseError } from "pocketbase"
+import PocketBase from "pocketbase"
 
 /**
  * Helper function to handle PocketBase errors.
@@ -139,9 +140,14 @@ export async function fetchTemplates() {
 }
 
 export async function fetchResumes(userId: string) {
+  console.warn("problem with fetchResumes... userId:", userId)
   const resumes = await db.collection("resumes").getList(1, 50, {
     filter: `user_id = "${userId}"`,
   })
+  console.warn(
+    "problem with fetchResumes... result:",
+    JSON.stringify(resumes, null, 2)
+  )
   return resumes.items
 }
 
@@ -390,61 +396,6 @@ export async function fetchPublicTemplates() {
   }
 }
 
-// export async function fetchPublicTemplatesWithVersion() {
-//   try {
-//     console.warn("fetchPublicTemplatesWithVersion.1")
-//     // Fetch public templates with autoCancel disabled
-//     const publicTemplates = await db.collection("templates").getFullList({
-//       filter: "published = true",
-//       autoCancel: false, // Disable auto-cancellation
-//     })
-//
-//     console.warn(
-//       "fetchPublicTemplatesWithVersion.2",
-//       JSON.stringify(publicTemplates, null, 2)
-//     )
-//
-//     // For each template, fetch the latest associated template-version
-//     const publicTemplatesWithVersions = await Promise.all(
-//       publicTemplates.map(async (template) => {
-//         console.warn(
-//           "fetchPublicTemplatesWithVersion.3.template",
-//           JSON.stringify(template, null, 2)
-//         )
-//         const templateVersionList = await db
-//           .collection("template_versions")
-//           .getList(1, 1, {
-//             filter: `template_id = "${template.id}"`,
-//             sort: "-version",
-//             autoCancel: false, // Disable auto-cancellation
-//           })
-//         console.warn(
-//           "fetchPublicTemplatesWithVersion.4.templateVersionList",
-//           JSON.stringify(templateVersionList, null, 2)
-//         )
-//
-//         const latestTemplateVersion = templateVersionList.items[0]
-//
-//         console.warn(
-//           "fetchPublicTemplatesWithVersion.5.templateVersionList",
-//           JSON.stringify(latestTemplateVersion, null, 2)
-//         )
-//
-//         return {
-//           id: template.id,
-//           name: template.name,
-//           templateVersion: latestTemplateVersion,
-//         }
-//       })
-//     )
-//
-//     return publicTemplatesWithVersions
-//   } catch (error) {
-//     console.error("Failed to fetch public templates with versions:", error)
-//     throw new Error("Failed to fetch public templates.")
-//   }
-// }
-
 export async function fetchPublicTemplatesWithVersion() {
   try {
     console.warn("fetchPublicTemplatesWithVersion.1.template")
@@ -490,5 +441,76 @@ export async function fetchPublicTemplatesWithVersion() {
   } catch (error) {
     console.error("Failed to fetch public templates with versions:", error)
     throw new Error("Failed to fetch public templates.")
+  }
+}
+
+/**
+ * Sends OTP to the user's email using PocketBase custom routes.
+ */
+export async function sendOTP(formData: FormData) {
+  const email = formData.get("email")
+
+  try {
+    // hits our custom route for generating the OTP & sending the email to the user.
+    const response = await db.send("/api/otp/auth", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+      headers: { "Content-Type": "application/json" },
+    })
+
+    if (response.status !== 200) {
+      throw new Error(
+        `Failed to send OTP: ${JSON.stringify(response, null, 2)}`
+      )
+    }
+
+    return { message: response.message }
+  } catch (error) {
+    console.error("Error sending OTP:", error)
+    throw error
+  }
+}
+
+/**
+ * Verifies OTP and logs in the user or registers them if not found.
+ */
+export async function verifyOTP(formData: FormData) {
+  const email = formData.get("email")
+  const otp = formData.get("otp")
+
+  try {
+    const response = await db.send("/api/otp/verify", {
+      method: "POST",
+      body: JSON.stringify({ email, code: otp }),
+      headers: { "Content-Type": "application/json" },
+    })
+
+    if (!response?.token) {
+      throw new Error(
+        `OTP verification failed: ${JSON.stringify(response, null, 2)}`
+      )
+    }
+
+    const { token, record: model } = response
+
+    // Store the authentication token
+    const cookie = JSON.stringify({ token, model })
+
+    // Set the auth cookie in the browser
+    cookies().set("pb_auth", cookie, {
+      secure: true,
+      path: "/",
+      sameSite: "strict",
+      httpOnly: true,
+    })
+
+    // Save the token in the PocketBase auth store
+    db.authStore.save(token)
+
+    // Redirect to the dashboard or desired page
+    redirect("/dashboard")
+  } catch (error) {
+    console.error("Error verifying OTP:", error)
+    throw error
   }
 }
