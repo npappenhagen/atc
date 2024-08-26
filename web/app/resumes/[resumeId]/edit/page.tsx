@@ -14,7 +14,7 @@ import {
   ResizablePanelGroup,
   ResizableHandle,
 } from "@/components/ui/resizable"
-import { Sun, Moon, Code, FileText, Eye } from "lucide-react"
+import { Icons } from "@/components/icons"
 import { useLiveRunner } from "react-live-runner"
 
 const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
@@ -73,6 +73,26 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
 
   if (!resume) return <p>Loading...</p>
 
+  const saveHtmlToLocalStorage = () => {
+    const element = document.getElementById("resume-preview")
+    if (!element) return
+
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            ${document.getElementsByTagName("style")[0].innerHTML}
+          </style>
+          <title>Resume Preview</title>
+        </head>
+        <body>
+          ${element.outerHTML}
+        </body>
+      </html>
+    `
+    localStorage.setItem("previewHtml", htmlContent)
+  }
+
   return (
     <div className="flex flex-col space-y-6 p-6 h-full bg-gray-50 dark:bg-gray-900">
       <div className="flex justify-between items-center mb-4">
@@ -106,9 +126,9 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
             onClick={() => document.documentElement.classList.toggle("dark")}
           >
             {document.documentElement.classList.contains("dark") ? (
-              <Sun />
+              <Icons.sun />
             ) : (
-              <Moon />
+              <Icons.moon />
             )}
           </Button>
         </div>
@@ -132,7 +152,7 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
                 } border-t border-l border-r dark:border-gray-700 rounded-t-md`}
                 onClick={() => setActiveTab("content")}
               >
-                <Code className="h-4 w-4" />
+                <Icons.code className="h-4 w-4" />
                 <span>Content</span>
               </button>
 
@@ -144,7 +164,7 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
                 } border-t border-l border-r dark:border-gray-700 rounded-t-md`}
                 onClick={() => setActiveTab("template")}
               >
-                <FileText className="h-4 w-4" />
+                <Icons.fileText className="h-4 w-4" />
                 <span>Template</span>
               </button>
             </div>

@@ -41,12 +41,12 @@ export type User = {
   avatar: string
   collectionId: string
   collectionName: string
-  created: string // Consider using Date if you want to work with Date objects.
+  created: string
   email: string
   emailVisibility: boolean
   id: string
   name: string
-  updated: string // Consider using Date if you want to work with Date objects.
+  updated: string
   username: string
   verified: boolean
 }

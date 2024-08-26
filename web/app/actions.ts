@@ -5,8 +5,6 @@ import { cookies } from "next/headers"
 import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/session"
 import { ClientResponseError } from "pocketbase"
-import PocketBase from "pocketbase"
-import { NextResponse } from "next/server"
 
 /**
  * Helper function to handle PocketBase errors.
@@ -190,6 +188,97 @@ async function getDefaultTemplateId(userId: string) {
   return newTemplate.id
 }
 
+/**
+ * Helper function to fetch the latest public template if available
+ */
+async function fetchLatestPublicTemplate() {
+  const publicTemplates = await db.collection("templates").getList(1, 1, {
+    filter: "published = true",
+    sort: "-created",
+  })
+  return publicTemplates.items[0] || null
+}
+
+/**
+ * Helper function to clone the latest public template and create a new version
+ */
+async function cloneTemplateAndCreateVersion(
+  templateId: string,
+  userId: string
+) {
+  const latestVersion = await db
+    .collection("template_versions")
+    .getFirstListItem(`template_id = "${templateId}"`, { sort: "-version" })
+
+  const newTemplate = await db.collection("templates").create({
+    user_id: userId,
+    name: `Clone of ${latestVersion.name}`,
+    published: false,
+  })
+
+  const newTemplateVersion = await db.collection("template_versions").create({
+    template_id: newTemplate.id,
+    version: 1,
+    markup: latestVersion.markup,
+    user_id: userId,
+  })
+
+  return {
+    newTemplateId: newTemplate.id,
+    newTemplateVersionId: newTemplateVersion.id,
+  }
+}
+
+/**
+ * Main function to create a new resume, optionally using a public template
+ */
+export async function createNewResume(userId: string): Promise<string> {
+  let templateVersionId: string
+
+  // Check for a public template and clone it if available
+  const publicTemplate = await fetchLatestPublicTemplate()
+
+  if (publicTemplate) {
+    const { newTemplateVersionId } = await cloneTemplateAndCreateVersion(
+      publicTemplate.id,
+      userId
+    )
+    templateVersionId = newTemplateVersionId
+  } else {
+    // If no public template is available, create a new blank template and version
+    const newTemplate = await db.collection("templates").create({
+      user_id: userId,
+      name: "Blank Template",
+      published: false,
+    })
+
+    const newTemplateVersion = await db.collection("template_versions").create({
+      template_id: newTemplate.id,
+      version: 1,
+      markup: "<div>{{content}}</div>",
+      user_id: userId,
+    })
+
+    templateVersionId = newTemplateVersion.id
+  }
+
+  // Create a new resume and version
+  const newResume = await db.collection("resumes").create({
+    user_id: userId,
+    name: "New Resume",
+  })
+
+  await db.collection("resume_versions").create({
+    resume_id: newResume.id,
+    version: 1,
+    content: {},
+    template_version_id: templateVersionId,
+    user_id: userId,
+  })
+
+  // Return the new resume ID for redirection
+  return newResume.id
+}
 /**
  * Clones an existing resume along with its associated template and versions.
  */
@@ -380,7 +469,9 @@ export async function fetchResumeData(resumeId: string) {
     }
   } catch (error) {
     handlePocketBaseError(error)
-    throw new Error("Failed to fetch resume data.")
+    throw new Error(
+      `Failed to fetch resume data. ${JSON.stringify(error, null, 2)}`
+    )
   }
 }
 

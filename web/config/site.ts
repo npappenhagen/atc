@@ -1,10 +1,10 @@
 import { SiteConfig } from "types"
 
 export const siteConfig: SiteConfig = {
-  name: "res.job",
-  description: "resume magic",
-  url: "https://nerp.lol",
-  ogImage: "https://tx.shadcn.com/og.jpg",
+  name: "vcv",
+  description: "manage, version, and apply your cv",
+  url: "https://vcv.neeto.lol",
+  ogImage: "",
   links: {
     github: "https://github.com/npappenhagen/atc/web",
   },
