@@ -1,31 +1,62 @@
-import Link from "next/link"
-import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
-import UserOTPAuthForm from "@/components/user-otp-auth-form"
+import { redirectToVerifyPage, sendOTP, verifyOTP } from "@/app/actions"
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: { error?: string; email?: string }
+}) {
+  const email = searchParams.email || ""
+
   return (
-    <div className="container flex h-screen w-screen flex-col items-center justify-center">
-      <Link
-        href="/"
-        className={cn(
-          buttonVariants({ variant: "ghost" }),
-          "absolute left-4 top-4 md:left-8 md:top-8"
-        )}
-      >
-        Back
-      </Link>
-      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-        <div className="flex flex-col space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Sign in with OTP
-          </h1>
-          <p className="text-sm text-muted">
-            Enter your email to receive a login code
-          </p>
-        </div>
-        <UserOTPAuthForm />
-      </div>
+    <div className="flex justify-center items-center min-h-screen bg-muted-50">
+      <Card className="w-full max-w-md p-6 shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-center">Log in</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {searchParams.error && (
+            <p className="text-red-500 text-center">{searchParams.error}</p>
+          )}
+
+          {!email ? (
+            <form action={sendOTP} className="space-y-4">
+              <Input
+                type="email"
+                name="email"
+                placeholder="Enter your email"
+                className="w-full"
+                required
+              />
+              <Button type="submit" className="w-full">
+                Send OTP
+              </Button>
+            </form>
+          ) : (
+            <form action={redirectToVerifyPage} className="space-y-4">
+              <Input
+                type="email"
+                name="email"
+                defaultValue={email}
+                readOnly
+                className="w-full"
+              />
+              <Input
+                type="number"
+                name="code"
+                placeholder="Enter OTP code"
+                className="w-full"
+                required
+              />
+              <Button type="submit" className="w-full">
+                Verify OTP
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

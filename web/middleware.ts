@@ -1,43 +1,48 @@
-// app/middleware.ts
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
 import { isTokenExpired } from "pocketbase"
-
-const PUBLIC_FILE = /\.(.*)$/
+import { db } from "@/lib/db"
 
 /**
- * Middleware to check for authentication on protected routes
+ * Middleware to check for authentication on protected routes.
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes and static files
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
-    pathname.startsWith("/demo") ||
-    PUBLIC_FILE.test(pathname)
+    pathname.startsWith("/verify")
   ) {
     return NextResponse.next()
   }
 
   const authCookie = request.cookies.get("pb_auth")
-  const parsedAuthCookie = JSON.parse(authCookie?.value || "{}")
-  const { token, model } = parsedAuthCookie
 
-  if (!token || isTokenExpired(token)) {
-    console.error("something wrong in middleware; authCookie:", authCookie)
+  if (!authCookie) {
+    console.error("Auth cookie missing in middleware.")
     db.authStore.clear()
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  // if we're in a client-side context
-  if (typeof window === "undefined") {
-    // sync the auth token and model to the client instance
-    db.authStore.save(token, model)
+  let parsedAuthCookie
+  try {
+    parsedAuthCookie = JSON.parse(authCookie.value || "{}")
+  } catch (error) {
+    console.error("Invalid auth cookie:", error)
+    db.authStore.clear()
+    return NextResponse.redirect(new URL("/login", request.url))
   }
+
+  const { token, model } = parsedAuthCookie
+
+  if (!token || isTokenExpired(token)) {
+    db.authStore.clear()
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
+
+  db.authStore.save(token, model)
 
   try {
     await db.collection("users").authRefresh()

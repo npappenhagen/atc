@@ -6,6 +6,7 @@ import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/session"
 import { ClientResponseError } from "pocketbase"
 import PocketBase from "pocketbase"
+import { NextResponse } from "next/server"
 
 /**
  * Helper function to handle PocketBase errors.
@@ -464,53 +465,62 @@ export async function sendOTP(formData: FormData) {
       )
     }
 
-    return { message: response.message }
+    redirect(`/login?email=${encodeURIComponent(email)}`)
   } catch (error) {
     console.error("Error sending OTP:", error)
     throw error
   }
 }
 
-/**
- * Verifies OTP and logs in the user or registers them if not found.
- */
+export async function redirectToVerifyPage(formData: FormData) {
+  const email = formData.get("email") as string
+  const code = formData.get("code") as string
+  redirect(
+    `/verify?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`
+  )
+}
+
 export async function verifyOTP(formData: FormData) {
-  const email = formData.get("email")
-  const otp = formData.get("otp")
+  const email = formData.get("email") as string
+  const code = formData.get("code") as string
+  console.warn("verifyOTP.1")
 
   try {
     const response = await db.send("/api/otp/verify", {
       method: "POST",
-      body: JSON.stringify({ email, code: otp }),
+      body: JSON.stringify({ email, code }),
       headers: { "Content-Type": "application/json" },
     })
 
-    if (!response?.token) {
+    console.warn("verifyOTP.2")
+    if (!response.token) {
+      console.error()
       throw new Error(
-        `OTP verification failed: ${JSON.stringify(response, null, 2)}`
+        `Failed to verify OTP. response: ${JSON.stringify(response, null, 2)}`
       )
     }
 
-    const { token, record: model } = response
+    const { token, record } = response
+    console.warn("verifyOTP.3")
 
-    // Store the authentication token
-    const cookie = JSON.stringify({ token, model })
-
-    // Set the auth cookie in the browser
-    cookies().set("pb_auth", cookie, {
+    // Set cookies
+    cookies().set("pb_auth", JSON.stringify({ token, model: record }), {
       secure: true,
       path: "/",
       sameSite: "strict",
       httpOnly: true,
     })
 
-    // Save the token in the PocketBase auth store
-    db.authStore.save(token)
+    console.warn("verifyOTP.4")
 
-    // Redirect to the dashboard or desired page
-    redirect("/dashboard")
+    // Save the token in PocketBase
+    db.authStore.save(token, record)
+    console.warn("verifyOTP.5")
+
+    // redirect("/dashboard")
   } catch (error) {
+    console.warn("verifyOTP.7")
     console.error("Error verifying OTP:", error)
-    throw error
+    throw new Error(`Failed to verify OTP. ${JSON.stringify(error, null, 2)}`)
   }
 }
