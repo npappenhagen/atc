@@ -92,6 +92,24 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
     `
     localStorage.setItem("previewHtml", htmlContent)
   }
+  const downloadHtml = () => {
+    saveHtmlToLocalStorage()
+    const htmlDoc = localStorage.getItem("previewHtml")
+
+    if (!htmlDoc) return
+
+    const blob = new Blob([htmlDoc], { type: "text/html" })
+    const url = URL.createObjectURL(blob)
+
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `Resume-Preview.html`
+    document.body.appendChild(link)
+    link.click()
+
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="flex flex-col space-y-6 p-6 h-full bg-gray-50 dark:bg-gray-900">
@@ -112,7 +130,7 @@ const ResumeEditPage = ({ params }: { params: { resumeId: string } }) => {
           >
             Preview
           </Button>
-          <Button variant="outline" onClick={() => saveHtmlToLocalStorage()}>
+          <Button variant="outline" onClick={() => downloadHtml()}>
             Download HTML
           </Button>
           <Button variant="outline" onClick={() => setIsEditing(!isEditing)}>

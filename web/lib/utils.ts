@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { env } from "@/env.mjs"
 import LZString from "lz-string"
 
 export function cn(...inputs: ClassValue[]) {

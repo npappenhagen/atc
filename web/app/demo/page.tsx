@@ -126,7 +126,7 @@ export default function DemoPage() {
           className="mr-4"
         />
         <div className="flex space-x-4">
-          <Button variant="outline" onClick={() => saveHtmlToLocalStorage()}>
+          <Button variant="outline" onClick={() => downloadHtml()}>
             Download HTML
           </Button>
           <Button variant="outline" onClick={() => setIsEditing(!isEditing)}>

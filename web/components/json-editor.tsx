@@ -7,7 +7,7 @@ const JsonEditor = ({ initialJson, onChange }) => {
       const parsedJson = JSON.parse(value)
       onChange(parsedJson)
     } catch (error) {
-      console.error("Invalid JSON format:", error)
+      console.warn("Invalid JSON format:", error)
     }
   }
 
